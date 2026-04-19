@@ -1,0 +1,96 @@
+2026-03-17 06:59:02 | INFO     | core.ffmpeg_worker | FFmpeg command: ffmpeg -y -i C:/Users/Admin/Downloads/Video samples/video.mp4 -c:v libx264 -crf 23 -preset medium -c:a copy -progress pipe:1 -nostats C:\Users\Admin\Downloads\Video samples\video_compressed.mp4
+2026-03-17 06:59:30 | INFO     | core.ffmpeg_worker | Job complete: C:/Users/Admin/Downloads/Video samples/video.mp4 → C:\Users\Admin\Downloads\Video samples\video_compressed.mp4
+2026-03-17 07:00:17 | INFO     | core.ffmpeg_worker | FFmpeg command: ffmpeg -y -i C:/Users/Admin/Downloads/Video samples/video.mp4 -c:v libx264 -crf 23 -preset medium -c:a copy -progress pipe:1 -nostats C:\Users\Admin\Downloads\Video samples\video_compressed.mp4
+2026-03-17 07:00:39 | INFO     | core.ffmpeg_worker | Job complete: C:/Users/Admin/Downloads/Video samples/video.mp4 → C:\Users\Admin\Downloads\Video samples\video_compressed.mp4
+2026-03-17 07:00:55 | INFO     | core.ffmpeg_worker | FFmpeg command: ffmpeg -y -i C:/Users/Admin/Downloads/Video samples/video_compressed.mp4 -c:v libx264 -crf 23 -preset medium -c:a copy -progress pipe:1 -nostats C:\Users\Admin\Downloads\Video samples\video_compressed_compressed.mp4
+2026-03-17 07:01:17 | INFO     | core.ffmpeg_worker | Job complete: C:/Users/Admin/Downloads/Video samples/video_compressed.mp4 → C:\Users\Admin\Downloads\Video samples\video_compressed_compressed.mp4
+2026-03-17 07:01:28 | INFO     | core.ffmpeg_worker | FFmpeg command: ffmpeg -y -i C:/Users/Admin/Downloads/Video samples/video_compressed_compressed.mp4 -c:v libx264 -crf 23 -preset medium -c:a copy -progress pipe:1 -nostats C:\Users\Admin\Downloads\Video samples\video_compressed_compressed_compressed.mp4
+2026-03-17 07:01:49 | INFO     | core.ffmpeg_worker | Job complete: C:/Users/Admin/Downloads/Video samples/video_compressed_compressed.mp4 → C:\Users\Admin\Downloads\Video samples\video_compressed_compressed_compressed.mp4
+2026-03-17 07:01:58 | INFO     | core.ffmpeg_worker | FFmpeg command: ffmpeg -y -i C:/Users/Admin/Downloads/Video samples/video_compressed_compressed_compressed.mp4 -c:v libx264 -crf 23 -preset medium -c:a copy -progress pipe:1 -nostats C:\Users\Admin\Downloads\Video samples\video_compressed_compressed_compressed_compressed.mp4
+2026-03-17 07:02:20 | INFO     | core.ffmpeg_worker | Job complete: C:/Users/Admin/Downloads/Video samples/video_compressed_compressed_compressed.mp4 → C:\Users\Admin\Downloads\Video samples\video_compressed_compressed_compressed_compressed.mp4
+2026-03-17 07:06:35 | INFO     | core.ffmpeg_worker | FFmpeg command: ffmpeg -y -i C:/Users/Admin/Downloads/Video samples/video.mp4 -c:v libx264 -crf 23 -preset medium -c:a copy -progress pipe:1 -nostats C:\Users\Admin\Downloads\Video samples\video_compressed.mp4
+2026-03-17 07:07:01 | INFO     | core.ffmpeg_worker | Job complete: C:/Users/Admin/Downloads/Video samples/video.mp4 → C:\Users\Admin\Downloads\Video samples\video_compressed.mp4
+2026-03-17 07:18:51 | INFO     | core.ffmpeg_worker | Plan: Quality: MEDIUM → CRF 26 for libx264. Source was 4595 kbps.
+2026-03-17 07:18:51 | INFO     | core.ffmpeg_worker | FFmpeg command: ffmpeg -y -i C:/Users/Admin/Downloads/Video samples/video.mp4 -c:v libx264 -crf 26 -preset medium -c:a copy -progress pipe:1 -nostats C:\Users\Admin\Downloads\Video samples\video_compressed.mp4
+2026-03-17 07:19:12 | INFO     | core.ffmpeg_worker | Job complete: C:/Users/Admin/Downloads/Video samples/video.mp4 → C:\Users\Admin\Downloads\Video samples\video_compressed.mp4
+2026-03-17 07:20:11 | INFO     | core.ffmpeg_worker | Plan: Size target → 2169 kbps video bitrate (source was 4595 kbps). Two-pass encoding.
+2026-03-17 07:20:11 | INFO     | core.ffmpeg_worker | Two-pass 1: ffmpeg -y -i C:/Users/Admin/Downloads/Video samples/video.mp4 -c:v libx264 -b:v 2169k -preset medium -pass 1 -passlogfile C:\Users\Admin\AppData\Local\Temp\compressor_pass_1876788695472 -an -f null NUL
+2026-03-17 07:20:21 | INFO     | core.ffmpeg_worker | Two-pass 2: ffmpeg -y -i C:/Users/Admin/Downloads/Video samples/video.mp4 -c:v libx264 -b:v 2169k -preset medium -pass 2 -passlogfile C:\Users\Admin\AppData\Local\Temp\compressor_pass_1876788695472 -c:a copy -progress pipe:1 -nostats C:\Users\Admin\Downloads\Video samples\video_compressed_1.mp4
+2026-03-17 07:28:19 | INFO     | core.ffmpeg_worker | Compression plan: Quality: MEDIUM → CRF 26 for libx264. Source was 4595 kbps.
+2026-03-17 07:28:19 | INFO     | core.ffmpeg_worker | FFmpeg command: ffmpeg -y -i C:/Users/Admin/Downloads/Video samples/video.mp4 -c:v libx264 -crf 26 -preset medium -c:a copy -progress pipe:1 -nostats C:\Users\Admin\Downloads\Video samples\video_compressed.mp4
+2026-03-17 07:28:40 | INFO     | core.ffmpeg_worker | Job complete: C:/Users/Admin/Downloads/Video samples/video.mp4 → C:\Users\Admin\Downloads\Video samples\video_compressed.mp4
+2026-03-17 07:36:48 | INFO     | core.ffmpeg_worker | Compression plan: Quality: MEDIUM → CRF 26 for libx264. Source was 4595 kbps.
+2026-03-17 07:36:48 | INFO     | core.ffmpeg_worker | FFmpeg command: ffmpeg -y -i C:/Users/Admin/Downloads/Video samples/video.mp4 -c:v libx264 -crf 26 -preset medium -c:a copy -progress pipe:1 -nostats C:\Users\Admin\Downloads\Video samples\video_compressed_1.mp4
+2026-03-17 07:37:14 | INFO     | core.ffmpeg_worker | Job complete: C:/Users/Admin/Downloads/Video samples/video.mp4 → C:\Users\Admin\Downloads\Video samples\video_compressed_1.mp4
+2026-03-17 07:44:45 | INFO     | core.ffmpeg_worker | Plan: 50% reduction — source 28.8 MB at 4595 kbps → 2169 kbps video bitrate. Two-pass.
+2026-03-17 07:44:45 | INFO     | core.ffmpeg_worker | Pass 1: ffmpeg -y -i C:/Users/Admin/Downloads/Video samples/video.mp4 -c:v libx264 -b:v 2169k -preset medium -pass 1 -passlogfile C:\Users\Admin\AppData\Local\Temp\compressor_2430108602224 -an -f null NUL
+2026-03-17 07:44:55 | INFO     | core.ffmpeg_worker | Pass 2: ffmpeg -y -i C:/Users/Admin/Downloads/Video samples/video.mp4 -c:v libx264 -b:v 2169k -preset medium -pass 2 -passlogfile C:\Users\Admin\AppData\Local\Temp\compressor_2430108602224 -c:a copy -progress pipe:1 -nostats C:\Users\Admin\Downloads\Video samples\video_compressed.mp4
+2026-03-17 07:45:06 | INFO     | core.ffmpeg_worker | Done: C:/Users/Admin/Downloads/Video samples/video.mp4 → C:\Users\Admin\Downloads\Video samples\video_compressed.mp4
+2026-03-17 07:47:17 | INFO     | core.ffmpeg_worker | Plan: 50% reduction — source 28.8 MB at 4595 kbps → 2169 kbps video bitrate. Two-pass.
+2026-03-17 07:47:17 | INFO     | core.ffmpeg_worker | Pass 1: ffmpeg -y -i C:/Users/Admin/Downloads/Video samples/video.mp4 -c:v libx264 -b:v 2169k -preset medium -pass 1 -passlogfile C:\Users\Admin\AppData\Local\Temp\compressor_2567664979392 -an -f null NUL
+2026-03-17 07:47:27 | INFO     | core.ffmpeg_worker | Pass 2: ffmpeg -y -i C:/Users/Admin/Downloads/Video samples/video.mp4 -c:v libx264 -b:v 2169k -preset medium -pass 2 -passlogfile C:\Users\Admin\AppData\Local\Temp\compressor_2567664979392 -c:a copy -progress pipe:1 -nostats C:\Users\Admin\Downloads\Video samples\video_compressed.mp4
+2026-03-17 07:47:42 | INFO     | core.ffmpeg_worker | Done: C:/Users/Admin/Downloads/Video samples/video.mp4 → C:\Users\Admin\Downloads\Video samples\video_compressed.mp4
+2026-03-17 07:59:00 | INFO     | core.ffmpeg_worker | Plan: 50% reduction — source 28.8 MB at 4595 kbps → 2169 kbps video bitrate. Two-pass.
+2026-03-17 07:59:00 | INFO     | core.ffmpeg_worker | Pass 1: ffmpeg -y -i C:/Users/Admin/Downloads/Video samples/video.mp4 -c:v libx264 -b:v 2169k -preset medium -pass 1 -passlogfile C:\Users\Admin\AppData\Local\Temp\compressor_1974421245520 -an -f null NUL
+2026-03-17 07:59:10 | INFO     | core.ffmpeg_worker | Pass 2: ffmpeg -y -i C:/Users/Admin/Downloads/Video samples/video.mp4 -c:v libx264 -b:v 2169k -preset medium -pass 2 -passlogfile C:\Users\Admin\AppData\Local\Temp\compressor_1974421245520 -c:a copy -progress pipe:1 -nostats C:\Users\Admin\Downloads\Video samples\video_compressed.mp4
+2026-03-17 07:59:21 | INFO     | core.ffmpeg_worker | Done: C:/Users/Admin/Downloads/Video samples/video.mp4 → C:\Users\Admin\Downloads\Video samples\video_compressed.mp4
+2026-03-17 08:26:41 | INFO     | core.ffmpeg_worker | Plan: Target 10.0 MB — source was 28.8 MB → 1469 kbps video bitrate. Two-pass.
+2026-03-17 08:26:41 | INFO     | core.ffmpeg_worker | Pass 1: ffmpeg -y -i C:/Users/Admin/Downloads/Video samples/video.mp4 -c:v libx264 -b:v 1469k -preset medium -pass 1 -passlogfile C:\Users\Admin\AppData\Local\Temp\compressor_2121703919328 -an -f null NUL
+2026-03-17 08:26:51 | INFO     | core.ffmpeg_worker | Pass 2: ffmpeg -y -i C:/Users/Admin/Downloads/Video samples/video.mp4 -c:v libx264 -b:v 1469k -preset medium -pass 2 -passlogfile C:\Users\Admin\AppData\Local\Temp\compressor_2121703919328 -c:a copy -progress pipe:1 -nostats C:\Users\Admin\Downloads\Video samples\video_compressed_1.mp4
+2026-03-17 08:27:00 | INFO     | core.ffmpeg_worker | Done: C:/Users/Admin/Downloads/Video samples/video.mp4 → C:\Users\Admin\Downloads\Video samples\video_compressed_1.mp4
+2026-04-19 22:22:33 | INFO     | core.ffmpeg_worker | Plan: Target 10.0 MB — source was 30.6 MB → 3148 kbps video bitrate. Two-pass.
+2026-04-19 22:22:33 | INFO     | core.ffmpeg_worker | Pass 1: ffmpeg -y -i C:/Users/Admin/Downloads/Untitled video - Made with Clipchamp (5).mp4 -c:v libx264 -b:v 3148k -preset medium -pass 1 -passlogfile C:\Users\Admin\AppData\Local\Temp\compressor_2095551123168 -an -f null NUL
+2026-04-19 22:22:35 | INFO     | core.ffmpeg_worker | Pass 2: ffmpeg -y -i C:/Users/Admin/Downloads/Untitled video - Made with Clipchamp (5).mp4 -c:v libx264 -b:v 3148k -preset medium -pass 2 -passlogfile C:\Users\Admin\AppData\Local\Temp\compressor_2095551123168 -c:a copy -progress pipe:1 -nostats C:\Users\Admin\Downloads\Untitled video - Made with Clipchamp (5)_compressed.mp4
+2026-04-19 22:22:37 | INFO     | core.ffmpeg_worker | Done: C:/Users/Admin/Downloads/Untitled video - Made with Clipchamp (5).mp4 → C:\Users\Admin\Downloads\Untitled video - Made with Clipchamp (5)_compressed.mp4
+2026-04-19 22:23:08 | ERROR    | core.ffmpeg_worker | Worker exception for C:/Users/Admin/Downloads/Untitled video - Made with Clipchamp (5)_compressed.mp4
+Traceback (most recent call last):
+  File "C:\Users\Admin\PycharmProjects\Compressor\core\ffmpeg_worker.py", line 48, in run
+    plan = self._resolve_plan()
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\PycharmProjects\Compressor\core\ffmpeg_worker.py", line 77, in _resolve_plan
+    return engine.plan_mb(meta, codec, preset, job.size_value)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\PycharmProjects\Compressor\core\compression.py", line 82, in plan_mb
+    return self._plan_from_bytes(
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\PycharmProjects\Compressor\core\compression.py", line 108, in _plan_from_bytes
+    raise ValueError(
+ValueError: Target size is too small to fit the audio track (128 kbps × 26s).
+2026-04-19 22:23:08 | ERROR    | core.ffmpeg_worker | Failed: C:/Users/Admin/Downloads/Untitled video - Made with Clipchamp (5)_compressed.mp4
+Target size is too small to fit the audio track (128 kbps × 26s).
+2026-04-19 22:23:36 | INFO     | core.ffmpeg_worker | Plan: Target 0.5 MB — source was 10.3 MB → 50 kbps video bitrate. Two-pass.
+2026-04-19 22:23:36 | INFO     | core.ffmpeg_worker | Pass 1: ffmpeg -y -i C:/Users/Admin/Downloads/Untitled video - Made with Clipchamp (5)_compressed.mp4 -c:v libx264 -b:v 50k -preset medium -pass 1 -passlogfile C:\Users\Admin\AppData\Local\Temp\compressor_2095551126048 -an -f null NUL
+2026-04-19 22:23:37 | INFO     | core.ffmpeg_worker | Pass 2: ffmpeg -y -i C:/Users/Admin/Downloads/Untitled video - Made with Clipchamp (5)_compressed.mp4 -c:v libx264 -b:v 50k -preset medium -pass 2 -passlogfile C:\Users\Admin\AppData\Local\Temp\compressor_2095551126048 -c:a copy -progress pipe:1 -nostats C:\Users\Admin\Downloads\Untitled video - Made with Clipchamp (5)_compressed_compressed.mp4
+2026-04-19 22:23:38 | INFO     | core.ffmpeg_worker | Done: C:/Users/Admin/Downloads/Untitled video - Made with Clipchamp (5)_compressed.mp4 → C:\Users\Admin\Downloads\Untitled video - Made with Clipchamp (5)_compressed_compressed.mp4
+2026-04-19 22:24:20 | INFO     | core.ffmpeg_worker | Plan: Target 1.5 MB — source was 10.3 MB → 363 kbps video bitrate. Two-pass.
+2026-04-19 22:24:20 | INFO     | core.ffmpeg_worker | Pass 1: ffmpeg -y -i C:/Users/Admin/Downloads/Untitled video - Made with Clipchamp (5)_compressed.mp4 -c:v libx264 -b:v 363k -preset medium -pass 1 -passlogfile C:\Users\Admin\AppData\Local\Temp\compressor_2095551127776 -an -f null NUL
+2026-04-19 22:24:21 | INFO     | core.ffmpeg_worker | Pass 2: ffmpeg -y -i C:/Users/Admin/Downloads/Untitled video - Made with Clipchamp (5)_compressed.mp4 -c:v libx264 -b:v 363k -preset medium -pass 2 -passlogfile C:\Users\Admin\AppData\Local\Temp\compressor_2095551127776 -c:a copy -progress pipe:1 -nostats C:\Users\Admin\Downloads\Untitled video - Made with Clipchamp (5)_compressed_compressed_1.mp4
+2026-04-19 22:24:23 | INFO     | core.ffmpeg_worker | Done: C:/Users/Admin/Downloads/Untitled video - Made with Clipchamp (5)_compressed.mp4 → C:\Users\Admin\Downloads\Untitled video - Made with Clipchamp (5)_compressed_compressed_1.mp4
+2026-04-19 22:27:48 | ERROR    | core.ffmpeg_worker | Worker exception for C:/Users/Admin/Downloads/combo.mp4
+Traceback (most recent call last):
+  File "C:\Users\Admin\PycharmProjects\Compressor\core\ffmpeg_worker.py", line 48, in run
+    plan = self._resolve_plan()
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\PycharmProjects\Compressor\core\ffmpeg_worker.py", line 77, in _resolve_plan
+    return engine.plan_mb(meta, codec, preset, job.size_value)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\PycharmProjects\Compressor\core\compression.py", line 77, in plan_mb
+    raise ValueError(
+ValueError: Target (1000.0 MB) must be smaller than the source (53.0 MB).
+2026-04-19 22:27:48 | ERROR    | core.ffmpeg_worker | Failed: C:/Users/Admin/Downloads/combo.mp4
+Target (1000.0 MB) must be smaller than the source (53.0 MB).
+2026-04-19 22:28:07 | ERROR    | core.ffmpeg_worker | Worker exception for C:/Users/Admin/Downloads/combo.mp4
+Traceback (most recent call last):
+  File "C:\Users\Admin\PycharmProjects\Compressor\core\ffmpeg_worker.py", line 48, in run
+    plan = self._resolve_plan()
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\PycharmProjects\Compressor\core\ffmpeg_worker.py", line 77, in _resolve_plan
+    return engine.plan_mb(meta, codec, preset, job.size_value)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\PycharmProjects\Compressor\core\compression.py", line 77, in plan_mb
+    raise ValueError(
+ValueError: Target (53.0 MB) must be smaller than the source (53.0 MB).
+2026-04-19 22:28:07 | ERROR    | core.ffmpeg_worker | Failed: C:/Users/Admin/Downloads/combo.mp4
+Target (53.0 MB) must be smaller than the source (53.0 MB).
+2026-04-19 22:28:45 | INFO     | core.ffmpeg_worker | Plan: Target 50.0 MB — source was 53.0 MB → 23193 kbps video bitrate. Two-pass.
+2026-04-19 22:28:45 | INFO     | core.ffmpeg_worker | Pass 1: ffmpeg -y -i C:/Users/Admin/Downloads/combo.mp4 -vf minterpolate=fps=59.94005994005994:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1 -c:v libaom-av1 -b:v 23193k -crf 10 -pass 1 -passlogfile C:\Users\Admin\AppData\Local\Temp\compressor_2095551130944 -an -f null NUL

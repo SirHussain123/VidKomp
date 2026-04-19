@@ -1,9 +1,9 @@
 """
 main_window.py
 --------------
-MainWindow with tabs:
+MainWindow with sidebar navigation:
   Process  — drop zone + queue + run controls
-  Settings — format, resolution, fps, smart compression, output folder
+  Settings — format, resolution, fps, output folder
   Advanced — codec, CRF, bitrate, preset, audio
   Enhance  — frame interpolation + upscaling
 """
@@ -11,7 +11,8 @@ MainWindow with tabs:
 import os
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QMessageBox, QStatusBar, QTabWidget, QFrame
+    QPushButton, QMessageBox, QStatusBar, QStackedWidget,
+    QLabel, QFrame, QSizePolicy, QScrollArea
 )
 
 from core.job_queue import JobQueue
@@ -40,8 +41,8 @@ class MainWindow(QMainWindow):
 
         self._build_ui()
         self.setWindowTitle("Compressor")
-        self.resize(820, 640)
-        self.setMinimumSize(660, 500)
+        self.resize(900, 660)
+        self.setMinimumSize(720, 520)
         self.setAcceptDrops(True)
 
     # ------------------------------------------------------------------
@@ -51,27 +52,73 @@ class MainWindow(QMainWindow):
     def _build_ui(self):
         central = QWidget()
         self.setCentralWidget(central)
-        root = QVBoxLayout(central)
+        root = QHBoxLayout(central)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
 
-        self._tabs = QTabWidget()
-        self._tabs.setDocumentMode(True)
-        self._tabs.addTab(self._make_process_tab(), "Process")
-        self._tabs.addTab(self._make_settings_tab(), "Settings")
-        self._tabs.addTab(self._make_advanced_tab(), "Advanced")
-        self._tabs.addTab(self._make_enhance_tab(), "Enhance")
-        root.addWidget(self._tabs)
+        root.addWidget(self._make_sidebar())
+
+        self._stack = QStackedWidget()
+        self._stack.addWidget(self._make_process_page())
+        self._stack.addWidget(self._make_settings_page())
+        self._stack.addWidget(self._make_advanced_page())
+        self._stack.addWidget(self._make_enhance_page())
+        root.addWidget(self._stack)
 
         self._status_bar = QStatusBar()
         self._status_bar.showMessage("Ready — drop video files to begin.")
         self.setStatusBar(self._status_bar)
 
-    def _make_process_tab(self) -> QWidget:
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
-        layout.setContentsMargins(16, 16, 16, 12)
-        layout.setSpacing(10)
+    def _make_sidebar(self) -> QWidget:
+        sidebar = QWidget()
+        sidebar.setObjectName("sidebar")
+        sidebar.setFixedWidth(172)
+
+        layout = QVBoxLayout(sidebar)
+        layout.setContentsMargins(0, 0, 0, 20)
+        layout.setSpacing(0)
+
+        header = QWidget()
+        header.setObjectName("sidebarHeader")
+        h_layout = QVBoxLayout(header)
+        h_layout.setContentsMargins(20, 22, 20, 22)
+        app_title = QLabel("Compressor")
+        app_title.setObjectName("appTitle")
+        h_layout.addWidget(app_title)
+        layout.addWidget(header)
+
+        div = QFrame()
+        div.setFrameShape(QFrame.Shape.HLine)
+        div.setObjectName("sidebarDivider")
+        layout.addWidget(div)
+        layout.addSpacing(6)
+
+        self._nav_buttons: list[QPushButton] = []
+        for label, idx in (("Process", 0), ("Settings", 1), ("Advanced", 2), ("Enhance", 3)):
+            btn = QPushButton(f"   {label}")
+            btn.setObjectName("navButton")
+            btn.setCheckable(True)
+            btn.setFixedHeight(40)
+            btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            btn.clicked.connect(lambda _checked, i=idx: self._switch_page(i))
+            layout.addWidget(btn)
+            self._nav_buttons.append(btn)
+
+        layout.addStretch()
+        self._nav_buttons[0].setChecked(True)
+        return sidebar
+
+    def _switch_page(self, index: int):
+        self._stack.setCurrentIndex(index)
+        for i, btn in enumerate(self._nav_buttons):
+            btn.setChecked(i == index)
+
+    def _make_process_page(self) -> QWidget:
+        page = QWidget()
+        page.setObjectName("contentPage")
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(24, 24, 24, 16)
+        layout.setSpacing(12)
 
         self._drop_widget = FileDropWidget()
         self._drop_widget.files_dropped.connect(self._on_files_dropped)
@@ -81,32 +128,54 @@ class MainWindow(QMainWindow):
         self._job_list.job_remove_requested.connect(self._on_remove_job)
         layout.addWidget(self._job_list)
 
-        layout.addWidget(self._make_divider())
         layout.addLayout(self._make_action_bar())
-        return tab
+        return page
 
-    def _make_settings_tab(self) -> QWidget:
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
-        layout.setContentsMargins(16, 16, 16, 16)
+    def _make_settings_page(self) -> QWidget:
+        page = QWidget()
+        page.setObjectName("contentPage")
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        inner = QWidget()
+        layout = QVBoxLayout(inner)
+        layout.setContentsMargins(24, 24, 24, 24)
         self._basic_settings = BasicSettingsPanel()
         layout.addWidget(self._basic_settings)
         layout.addStretch()
-        return tab
+        scroll.setWidget(inner)
+        outer = QVBoxLayout(page)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.addWidget(scroll)
+        return page
 
-    def _make_advanced_tab(self) -> QWidget:
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
-        layout.setContentsMargins(16, 16, 16, 16)
+    def _make_advanced_page(self) -> QWidget:
+        page = QWidget()
+        page.setObjectName("contentPage")
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        inner = QWidget()
+        layout = QVBoxLayout(inner)
+        layout.setContentsMargins(24, 24, 24, 24)
         self._advanced_settings = AdvancedSettingsPanel()
         layout.addWidget(self._advanced_settings)
         layout.addStretch()
-        return tab
+        scroll.setWidget(inner)
+        outer = QVBoxLayout(page)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.addWidget(scroll)
+        return page
 
-    def _make_enhance_tab(self) -> QWidget:
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
-        layout.setContentsMargins(16, 16, 16, 16)
+    def _make_enhance_page(self) -> QWidget:
+        page = QWidget()
+        page.setObjectName("contentPage")
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        inner = QWidget()
+        layout = QVBoxLayout(inner)
+        layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(16)
         self._interp_panel = InterpPanel()
         self._upscale_panel = UpscalePanel()
@@ -114,25 +183,29 @@ class MainWindow(QMainWindow):
         layout.addWidget(self._make_divider())
         layout.addWidget(self._upscale_panel)
         layout.addStretch()
-        return tab
+        scroll.setWidget(inner)
+        outer = QVBoxLayout(page)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.addWidget(scroll)
+        return page
 
     def _make_action_bar(self) -> QHBoxLayout:
         bar = QHBoxLayout()
         bar.setSpacing(8)
 
-        self._start_btn = QPushButton("▶  Start Queue")
+        self._start_btn = QPushButton("▶   Start Queue")
         self._start_btn.setObjectName("primaryButton")
-        self._start_btn.setFixedHeight(34)
+        self._start_btn.setFixedHeight(36)
         self._start_btn.clicked.connect(self._start_queue)
         self._start_btn.setToolTip("Begin processing all pending jobs")
 
         self._cancel_btn = QPushButton("Cancel")
-        self._cancel_btn.setFixedHeight(34)
+        self._cancel_btn.setFixedHeight(36)
         self._cancel_btn.clicked.connect(self._queue.cancel_current)
         self._cancel_btn.setToolTip("Cancel the currently running job")
 
         self._clear_btn = QPushButton("Clear Finished")
-        self._clear_btn.setFixedHeight(34)
+        self._clear_btn.setFixedHeight(36)
         self._clear_btn.clicked.connect(self._clear_finished)
         self._clear_btn.setToolTip("Remove completed and failed jobs from the list")
 
@@ -158,19 +231,11 @@ class MainWindow(QMainWindow):
     def _add_video(self, path: str):
         try:
             meta = VideoProbe.probe(path)
-
-            # Build a job with default state first
             job = VideoJob(input_path=path, source_metadata=meta)
-
-            # Apply output settings (format, resolution, fps)
             self._basic_settings.apply_to_job(job)
-            # Codec/preset overrides from advanced tab
             self._advanced_settings.apply_to_job(job)
-            # Enhance settings
             self._interp_panel.apply_to_job(job)
             self._upscale_panel.apply_to_job(job)
-
-            # Build output path using the resolved format + user folder
             output_folder = self._basic_settings.get_output_folder()
             output_format = job.output_format or "mp4"
             raw_path = FileUtils.build_output_path(
@@ -179,7 +244,6 @@ class MainWindow(QMainWindow):
                 output_format=output_format,
             )
             job.output_path = FileUtils.ensure_unique(raw_path)
-
             self._queue.add_job(job)
             self._job_list.add_job(
                 job,
@@ -187,7 +251,6 @@ class MainWindow(QMainWindow):
                 default_value=self._basic_settings.get_default_value(),
             )
             self._status_bar.showMessage(f"Added: {os.path.basename(path)}")
-
         except Exception as e:
             QMessageBox.critical(self, "Failed to load file",
                                  f"{os.path.basename(path)}:\n{e}")
@@ -210,6 +273,21 @@ class MainWindow(QMainWindow):
         if not pending:
             self._status_bar.showMessage("No pending jobs in queue.")
             return
+
+        output_folder = self._basic_settings.get_output_folder()
+        for job in pending:
+            self._basic_settings.apply_to_job(job)
+            self._advanced_settings.apply_to_job(job)
+            self._interp_panel.apply_to_job(job)
+            self._upscale_panel.apply_to_job(job)
+            output_format = job.output_format or "mp4"
+            raw_path = FileUtils.build_output_path(
+                input_path=job.input_path,
+                output_folder=output_folder,
+                output_format=output_format,
+            )
+            job.output_path = FileUtils.ensure_unique(raw_path)
+
         self._start_btn.setEnabled(False)
         self._queue.start()
 

@@ -13,6 +13,7 @@ def main():
     setup_logging()
 
     app = QApplication(sys.argv)
+    app.setStyle("Fusion")
 
     qss_path = os.path.join(PROJECT_ROOT, "assets", "styles", "theme.qss")
     if os.path.exists(qss_path):

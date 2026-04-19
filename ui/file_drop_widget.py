@@ -1,7 +1,7 @@
 """
 file_drop_widget.py
 -------------------
-Drag-and-drop zone for video files. Clean, minimal, bordered.
+Drag-and-drop zone for video files.
 """
 
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QFileDialog, QSizePolicy
@@ -10,13 +10,6 @@ from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QMouseEvent
 
 
 class FileDropWidget(QWidget):
-    """
-    Drop zone. Click or drag to add video files.
-
-    Signals:
-        files_dropped(list[str]): Valid file paths the user supplied.
-    """
-
     files_dropped = pyqtSignal(list)
 
     ACCEPTED_EXTENSIONS = {".mp4", ".mkv", ".avi", ".mov", ".webm",
@@ -28,16 +21,20 @@ class FileDropWidget(QWidget):
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setObjectName("fileDropWidget")
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        self.setMinimumHeight(160)
+        self.setMinimumHeight(128)
         self._build_ui()
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.setSpacing(4)
-        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(6)
+        layout.setContentsMargins(24, 20, 24, 20)
 
-        self._label = QLabel("Drop video files here, or click to browse")
+        self._icon = QLabel("↑")
+        self._icon.setObjectName("dropIcon")
+        self._icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self._label = QLabel("Drop videos here  or  click to browse")
         self._label.setObjectName("dropLabel")
         self._label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
@@ -45,6 +42,7 @@ class FileDropWidget(QWidget):
         self._sub.setObjectName("dropSubLabel")
         self._sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
+        layout.addWidget(self._icon)
         layout.addWidget(self._label)
         layout.addWidget(self._sub)
 
@@ -55,15 +53,18 @@ class FileDropWidget(QWidget):
     def dragEnterEvent(self, event: QDragEnterEvent):
         if event.mimeData().hasUrls():
             event.acceptProposedAction()
+            self._set_drag_active(True)
             self._label.setText("Release to add files")
             self._sub.setText("")
         else:
             event.ignore()
 
     def dragLeaveEvent(self, event):
+        self._set_drag_active(False)
         self._reset_text()
 
     def dropEvent(self, event: QDropEvent):
+        self._set_drag_active(False)
         self._reset_text()
         paths = [
             url.toLocalFile() for url in event.mimeData().urls()
@@ -73,8 +74,12 @@ class FileDropWidget(QWidget):
         if paths:
             self.files_dropped.emit(paths)
 
+    def _set_drag_active(self, active: bool):
+        self.setProperty("dragActive", active)
+        self.style().polish(self)
+
     def _reset_text(self):
-        self._label.setText("Drop video files here, or click to browse")
+        self._label.setText("Drop videos here  or  click to browse")
         self._sub.setText("MP4 · MKV · MOV · AVI · WEBM · FLV · WMV")
 
     # ------------------------------------------------------------------

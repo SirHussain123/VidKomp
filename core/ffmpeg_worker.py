@@ -91,7 +91,6 @@ class FFmpegWorker(QThread):
             # Pass 1 — analysis
             cmd1 = self._build_cmd(plan, pass_num=1, passlogfile=passlogfile)
             log.info("Pass 1: %s", " ".join(cmd1))
-            print(f"[PASS 1] {' '.join(cmd1)}")
             self._run_process(cmd1, progress_offset=0.0, progress_scale=0.4)
 
             if self.job.status in (JobStatus.FAILED, JobStatus.CANCELLED):
@@ -100,7 +99,6 @@ class FFmpegWorker(QThread):
             # Pass 2 — encode
             cmd2 = self._build_cmd(plan, pass_num=2, passlogfile=passlogfile)
             log.info("Pass 2: %s", " ".join(cmd2))
-            print(f"[PASS 2] {' '.join(cmd2)}")
             self._run_process(cmd2, progress_offset=40.0, progress_scale=0.6)
 
             if self.job.status != JobStatus.FAILED:
