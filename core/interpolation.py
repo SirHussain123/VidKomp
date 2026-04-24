@@ -2,56 +2,52 @@
 interpolation.py
 ----------------
 Frame interpolation logic.
-Currently supports 2x FFmpeg minterpolate. Structured for RIFE integration later.
+Supports FFmpeg minterpolate today and external RIFE when installed.
 """
 
+import shutil
 
-from core.video_job import VideoJob, InterpolationMode
+from core.video_job import InterpolationMode, VideoJob
+
+
+RIFE_MODELS = [
+    "rife-v4.6",
+    "rife-v4",
+    "rife-anime",
+    "rife-UHD",
+]
 
 
 class InterpolationEngine:
     """
     Configures a VideoJob for frame interpolation.
-    The actual FFmpeg filter string is built inside ffmpeg_worker.py.
-    This class sets the job parameters and validates feasibility.
+    The actual processing happens in ffmpeg_worker.py.
     """
 
     def apply_2x(self, job: VideoJob):
-        """
-        Configure a job for 2x frame interpolation using FFmpeg's minterpolate.
-        The output FPS will be double the source FPS.
-
-        Args:
-            job: Must have source_metadata populated before calling.
-        """
         if not job.source_metadata:
             raise ValueError("source_metadata must be set before applying interpolation.")
+        job.interpolation_mode = InterpolationMode.MINTERPOLATE_2X
 
-        job.interpolation_mode = InterpolationMode.TWO_X
+    def apply_rife(self, job: VideoJob, model_name: str = "rife-v4.6"):
+        if not job.source_metadata:
+            raise ValueError("source_metadata must be set before applying interpolation.")
+        job.interpolation_mode = InterpolationMode.RIFE_2X
+        job.interpolation_model = model_name
 
     def disable(self, job: VideoJob):
-        """Remove interpolation from a job."""
         job.interpolation_mode = InterpolationMode.NONE
 
     def estimated_output_fps(self, job: VideoJob) -> float | None:
-        """
-        Return the expected output FPS after interpolation, or None if not applicable.
-        """
         if not job.source_metadata:
             return None
-
-        if job.interpolation_mode == InterpolationMode.TWO_X:
+        if job.interpolation_mode in (
+            InterpolationMode.MINTERPOLATE_2X,
+            InterpolationMode.RIFE_2X,
+        ):
             return job.source_metadata.fps * 2
-
         return job.source_metadata.fps
 
-    # ------------------------------------------------------------------
-    # Future: RIFE integration stub
-    # ------------------------------------------------------------------
-
-    def apply_rife(self, job: VideoJob):
-        """
-        Placeholder for RIFE neural frame interpolation.
-        Will require RIFE to be installed as an external tool.
-        """
-        raise NotImplementedError("RIFE integration is planned for a future release.")
+    @staticmethod
+    def is_rife_available() -> bool:
+        return shutil.which("rife-ncnn-vulkan") is not None

@@ -20,13 +20,15 @@ class JobStatus(Enum):
 
 
 class InterpolationMode(Enum):
-    NONE  = auto()
-    TWO_X = auto()
+    NONE = auto()
+    MINTERPOLATE_2X = auto()
+    RIFE_2X = auto()
 
 
 class UpscaleMode(Enum):
-    NONE    = auto()
+    NONE = auto()
     LANCZOS = auto()
+    REAL_ESRGAN = auto()
 
 
 class SizeMode(Enum):
@@ -64,12 +66,15 @@ class VideoJob:
     # --- Frame interpolation ---
     interpolation_enabled: bool = False
     interpolation_mode: InterpolationMode = InterpolationMode.NONE
+    interpolation_model: str = "rife-v4.6"
 
     # --- Upscaling ---
     upscale_enabled:  bool            = False
     upscale_mode:     UpscaleMode     = UpscaleMode.NONE
     upscale_width:    Optional[int]   = None
     upscale_height:   Optional[int]   = None
+    upscale_model:    str             = "realesr-animevideov3"
+    upscale_scale:    int             = 2
 
     # --- Runtime state ---
     status:               JobStatus   = JobStatus.PENDING
