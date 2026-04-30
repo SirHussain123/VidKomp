@@ -63,6 +63,18 @@ class JobQueue(QObject):
                 w.cancel()
                 break
 
+    def cancel_all(self):
+        self._running = False
+        for job in self._jobs:
+            if job.status in (JobStatus.PENDING, JobStatus.RUNNING):
+                job.status = JobStatus.CANCELLED
+        for worker in self._workers:
+            if worker.isRunning():
+                worker.cancel()
+        for worker in self._workers:
+            if worker.isRunning():
+                worker.wait(3000)
+
     # ------------------------------------------------------------------
     # Internal
     # ------------------------------------------------------------------

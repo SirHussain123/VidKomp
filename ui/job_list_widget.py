@@ -4,7 +4,7 @@ job_list_widget.py
 Queue of VideoJob rows with compact workflow summaries and expandable controls.
 """
 
-from PyQt6.QtCore import QRegularExpression, Qt, pyqtSignal
+from PyQt6.QtCore import QElapsedTimer, QRegularExpression, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QRegularExpressionValidator
 from PyQt6.QtWidgets import (
     QCheckBox,
@@ -68,6 +68,11 @@ class JobRowWidget(QWidget):
         self._upscale_engine = UpscalingEngine()
         self._limits = self._build_limits()
         self._details_expanded = False
+        self._progress_timer = QElapsedTimer()
+        self._latest_progress_pct = 0.0
+        self._eta_refresh_timer = QTimer(self)
+        self._eta_refresh_timer.setInterval(1000)
+        self._eta_refresh_timer.timeout.connect(self._refresh_eta_label)
         self.setObjectName("jobRow")
         self._build_ui(default_mode, default_value)
         self._sync_to_job()
@@ -156,6 +161,11 @@ class JobRowWidget(QWidget):
         top.addLayout(right)
 
         content_layout.addLayout(top)
+
+        self._eta_label = QLabel("")
+        self._eta_label.setObjectName("jobEta")
+        self._eta_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        content_layout.addWidget(self._eta_label)
 
         self._details_widget = QWidget()
         details = QVBoxLayout(self._details_widget)
@@ -274,6 +284,7 @@ class JobRowWidget(QWidget):
 
         self._upscale_preset_combo = ConsistentComboBox()
         self._upscale_preset_combo.addItem("Custom", None)
+        self._upscale_preset_combo.addItem("Original", "Original")
         for name in UPSCALE_PRESETS:
             self._upscale_preset_combo.addItem(name, name)
         self._upscale_preset_combo.setFixedWidth(120)
@@ -321,7 +332,7 @@ class JobRowWidget(QWidget):
         outer.addWidget(content)
 
         self._progress_bar = QProgressBar()
-        self._progress_bar.setRange(0, 100)
+        self._progress_bar.setRange(0, 1000)
         self._progress_bar.setValue(0)
         self._progress_bar.setTextVisible(False)
         self._progress_bar.setFixedHeight(3)
@@ -417,7 +428,8 @@ class JobRowWidget(QWidget):
         if not hasattr(self, "_upscale_controls"):
             return
         is_ai = self._upscale_method_combo.currentData() == UpscaleMode.REAL_ESRGAN
-        is_custom = self._upscale_preset_combo.currentData() is None
+        preset = self._upscale_preset_combo.currentData()
+        is_custom = preset is None
         self._upscale_w_spin.setVisible(is_custom)
         self._upscale_h_spin.setVisible(is_custom)
         self._upscale_model_combo.setVisible(is_ai)
@@ -427,7 +439,7 @@ class JobRowWidget(QWidget):
             return
         if is_ai:
             if UpscalingEngine.is_realesrgan_available():
-                self._upscale_hint.setText("Best visual detail, heavier GPU load.")
+                self._upscale_hint.setText("AI restore/sharpen or upscale. Very slow on long/high-FPS videos.")
             else:
                 self._upscale_hint.setText("Real-ESRGAN binary not found in ai/upscaling/realesrgan or PATH.")
         else:
@@ -492,7 +504,10 @@ class JobRowWidget(QWidget):
 
     def _on_upscale_preset_changed(self):
         preset = self._upscale_preset_combo.currentData()
-        if preset in UPSCALE_PRESETS:
+        if preset == "Original" and self.job.source_metadata:
+            self._upscale_w_spin.setValue(self.job.source_metadata.width)
+            self._upscale_h_spin.setValue(self.job.source_metadata.height)
+        elif preset in UPSCALE_PRESETS:
             width, height = UPSCALE_PRESETS[preset]
             self._upscale_w_spin.setValue(width)
             self._upscale_h_spin.setValue(height)
@@ -532,8 +547,13 @@ class JobRowWidget(QWidget):
             self._interp_engine.disable(self.job)
 
         if self.job.upscale_enabled:
-            width = self._upscale_w_spin.value()
-            height = self._upscale_h_spin.value()
+            preset = self._upscale_preset_combo.currentData()
+            if preset == "Original" and self.job.source_metadata:
+                width = self.job.source_metadata.width
+                height = self.job.source_metadata.height
+            else:
+                width = self._upscale_w_spin.value()
+                height = self._upscale_h_spin.value()
             method = self._upscale_method_combo.currentData()
             if method == UpscaleMode.REAL_ESRGAN:
                 self._upscale_engine.apply_realesrgan(
@@ -553,9 +573,14 @@ class JobRowWidget(QWidget):
         self._refresh_summary()
 
     def set_progress(self, pct: float):
-        self._progress_bar.setValue(int(pct))
+        pct = max(0.0, min(100.0, pct))
+        self._latest_progress_pct = pct
+        self._progress_bar.setValue(round(pct * 10))
+        if self.job.status == JobStatus.RUNNING:
+            self._refresh_eta_label()
 
     def set_status(self, status: JobStatus):
+        self.job.status = status
         text, style = STATUS_STYLE.get(status, ("Unknown", ""))
         self._status_label.setText(text)
         self._status_label.setStyleSheet(f"{style} font-size: 11px; font-weight: 600;")
@@ -564,14 +589,27 @@ class JobRowWidget(QWidget):
             "QProgressBar { background: #eadfce; border: none; border-radius: 0; } "
         )
         if status == JobStatus.DONE:
-            self._progress_bar.setValue(100)
+            self._eta_refresh_timer.stop()
+            self._progress_bar.setValue(1000)
             self._progress_bar.setStyleSheet(bar_base + PROGRESS_CHUNK_DONE)
+            self._eta_label.setText("Complete")
         elif status == JobStatus.FAILED:
+            self._eta_refresh_timer.stop()
             self._progress_bar.setStyleSheet(bar_base + PROGRESS_CHUNK_FAILED)
+            self._eta_label.setText("Failed")
         elif status == JobStatus.CANCELLED:
+            self._eta_refresh_timer.stop()
             self._progress_bar.setStyleSheet(bar_base + PROGRESS_CHUNK_CANCELLED)
+            self._eta_label.setText("Cancelled")
         elif status == JobStatus.RUNNING:
             self._progress_bar.setStyleSheet(bar_base + PROGRESS_CHUNK_RUNNING)
+            self._progress_timer.restart()
+            self._latest_progress_pct = max(self._latest_progress_pct, self.job.progress)
+            self._eta_refresh_timer.start()
+            self._eta_label.setText("Estimating remaining time...")
+        else:
+            self._eta_refresh_timer.stop()
+            self._eta_label.setText("")
 
         is_running = status == JobStatus.RUNNING
         self._toggle_btn.setEnabled(not is_running)
@@ -593,6 +631,33 @@ class JobRowWidget(QWidget):
         self._upscale_check.setEnabled(not is_running)
         self._interp_check.setEnabled(not is_running)
         self._remove_btn.setEnabled(not is_running)
+
+    def _build_eta_text(self, pct: float) -> str:
+        if pct <= 0.5 or not self._progress_timer.isValid():
+            elapsed_s = self._progress_timer.elapsed() / 1000.0 if self._progress_timer.isValid() else 0.0
+            return f"{pct:.1f}% - elapsed {self._format_duration(elapsed_s)} - estimating remaining time..."
+
+        elapsed_s = self._progress_timer.elapsed() / 1000.0
+        remaining_s = max(0.0, elapsed_s * (100.0 - pct) / pct)
+        return (
+            f"{pct:.1f}% - elapsed {self._format_duration(elapsed_s)}"
+            f" - about {self._format_duration(remaining_s)} remaining"
+        )
+
+    def _refresh_eta_label(self):
+        if self.job.status == JobStatus.RUNNING:
+            self._eta_label.setText(self._build_eta_text(self._latest_progress_pct))
+
+    @staticmethod
+    def _format_duration(seconds: float) -> str:
+        total = max(0, int(round(seconds)))
+        hours, rem = divmod(total, 3600)
+        minutes, secs = divmod(rem, 60)
+        if hours:
+            return f"{hours}h {minutes:02d}m"
+        if minutes:
+            return f"{minutes}m {secs:02d}s"
+        return f"{secs}s"
 
 
 class JobListWidget(QWidget):

@@ -519,6 +519,11 @@ QLabel#jobMeta {
     font-size: 11px;
 }
 
+QLabel#jobEta {
+    color: #8f8e86;
+    font-size: 11px;
+}
+
 QLabel#jobStatus {
     font-size: 11px;
     font-weight: 600;

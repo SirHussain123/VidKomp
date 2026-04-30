@@ -57,6 +57,7 @@ class UpscalePanel(QWidget):
 
         self._preset_combo = ConsistentComboBox()
         self._preset_combo.addItem("Custom", None)
+        self._preset_combo.addItem("Original", "Original")
         for name in UPSCALE_PRESETS:
             self._preset_combo.addItem(name, name)
         self._preset_combo.currentIndexChanged.connect(self._on_preset_changed)
@@ -144,6 +145,23 @@ class UpscalePanel(QWidget):
 
         preset = self._preset_combo.currentData()
         method = self._method_combo.currentData()
+        if preset == "Original":
+            if not job.source_metadata:
+                raise ValueError("Original resolution requires source metadata.")
+            width = job.source_metadata.width
+            height = job.source_metadata.height
+            if method == UpscaleMode.REAL_ESRGAN:
+                self._engine.apply_realesrgan(
+                    job,
+                    width,
+                    height,
+                    scale=self._scale_combo.currentData(),
+                    model_name=self._realesrgan_model_combo.currentText(),
+                )
+            else:
+                self._engine.apply_lanczos(job, width, height)
+            return
+
         if preset:
             self._engine.apply_preset(job, preset, mode=method)
             return

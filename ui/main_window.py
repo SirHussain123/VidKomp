@@ -345,6 +345,10 @@ class MainWindow(QMainWindow):
             if url.isLocalFile():
                 self._add_video(url.toLocalFile())
 
+    def closeEvent(self, event):
+        self._queue.cancel_all()
+        super().closeEvent(event)
+
     # ------------------------------------------------------------------
     # Queue control
     # ------------------------------------------------------------------

@@ -7,6 +7,7 @@ External Real-ESRGAN and RIFE paths are used when installed and selected.
 
 import logging
 import os
+import re
 import subprocess
 import threading
 from typing import Any
@@ -27,6 +28,7 @@ from utils.ffmpeg_caps import first_available_encoder
 from utils.tool_paths import resolve_realesrgan_binary, resolve_rife_binary
 
 log = logging.getLogger(__name__)
+PERCENT_RE = re.compile(r"^\s*(\d+(?:\.\d+)?)%\s*$")
 
 FORMAT_DEFAULT_CODEC = {
     "mp4": "libx264",
@@ -64,6 +66,7 @@ class FFmpegWorker(QThread):
         super().__init__(parent)
         self.job = job
         self._process: subprocess.Popen | None = None
+        self._cancel_requested = False
 
     def run(self):
         self.job.status = JobStatus.RUNNING
@@ -80,18 +83,37 @@ class FFmpegWorker(QThread):
                 self._run_single_pass()
         except Exception as exc:
             log.exception("Worker exception for %s", self.job.input_path)
+            self._stop_process_tree()
             self._fail(str(exc))
 
     def cancel(self):
-        if self._process and self._process.poll() is None:
-            self._process.terminate()
-            self.job.status = JobStatus.CANCELLED
+        self._cancel_requested = True
+        self.job.status = JobStatus.CANCELLED
+        self._stop_process_tree()
 
     def _uses_external_enhancement(self) -> bool:
         return (
             self.job.upscale_mode == UpscaleMode.REAL_ESRGAN
             or self.job.interpolation_mode == InterpolationMode.RIFE_2X
         )
+
+    def _validate_external_enhancement_request(self):
+        job = self.job
+        meta = job.source_metadata
+        if job.upscale_mode != UpscaleMode.REAL_ESRGAN or meta is None:
+            return
+
+        target_w = job.upscale_width or job.target_width
+        target_h = job.upscale_height or job.target_height
+        if not target_w or not target_h:
+            raise ValueError("Real-ESRGAN requires a target upscale size.")
+
+        if target_w < meta.width or target_h < meta.height:
+            raise ValueError(
+                "Real-ESRGAN should not be used for lower output resolutions. "
+                f"Source is {meta.width}x{meta.height}, requested output is {target_w}x{target_h}. "
+                "Use Lanczos for downscaling."
+            )
 
     def _resolve_plan(self) -> CompressionPlan:
         job = self.job
@@ -176,27 +198,36 @@ class FFmpegWorker(QThread):
             self._mark_complete()
 
     def _run_external_pipeline(self):
+        self._validate_external_enhancement_request()
         temp_root = FileUtils.create_temp_dir("vidkomp_enhance_")
         try:
             frame_input_dir = os.path.join(temp_root, "frames_in")
             os.makedirs(frame_input_dir, exist_ok=True)
-            frame_pattern = "frame_%08d.png"
+            frame_ext = "jpg" if self.job.upscale_mode == UpscaleMode.REAL_ESRGAN else "png"
+            frame_pattern = f"frame_%08d.{frame_ext}"
+            extract_filters = self._external_extract_filters()
 
-            self._extract_frames(self.job.input_path, frame_input_dir, frame_pattern)
+            self._extract_frames(
+                self.job.input_path,
+                frame_input_dir,
+                frame_pattern,
+                frame_ext,
+                vf_filters=extract_filters,
+            )
             source_frame_count = self._count_frames(frame_input_dir)
 
             if self.job.upscale_mode == UpscaleMode.REAL_ESRGAN:
                 frame_output_dir = os.path.join(temp_root, "frames_upscaled")
                 os.makedirs(frame_output_dir, exist_ok=True)
-                self._run_realesrgan(frame_input_dir, frame_output_dir)
+                self._run_realesrgan(frame_input_dir, frame_output_dir, source_frame_count, frame_ext)
                 frame_input_dir = frame_output_dir
                 source_frame_count = self._count_frames(frame_input_dir)
 
             if self.job.interpolation_mode == InterpolationMode.RIFE_2X:
                 frame_output_dir = os.path.join(temp_root, "frames_interpolated")
                 os.makedirs(frame_output_dir, exist_ok=True)
-                frame_pattern = "%08d.png"
-                self._run_rife(frame_input_dir, frame_output_dir, frame_pattern)
+                frame_pattern = f"%08d.{frame_ext}"
+                self._run_rife(frame_input_dir, frame_output_dir, frame_pattern, source_frame_count)
                 interpolated_frame_count = self._count_frames(frame_output_dir)
                 self._validate_rife_output(source_frame_count, interpolated_frame_count)
                 frame_input_dir = frame_output_dir
@@ -205,19 +236,15 @@ class FFmpegWorker(QThread):
             assemble_fps = self._assembly_fps()
 
             if self.job.compress_enabled:
-                intermediate_path = os.path.join(temp_root, "enhanced.mp4")
-                self._assemble_video_from_frames(
-                    frames_dir=frame_input_dir,
-                    frame_pattern=frame_pattern,
-                    output_path=intermediate_path,
-                    fps=assemble_fps,
-                    vf_filters=assemble_filters,
-                    final_audio=False,
-                    video_codec="libx264",
-                )
                 plan = self._resolve_plan()
                 self.job.compression_reason = f"{plan.reason} External enhancement pipeline."
-                self._run_two_pass_from_source(plan, intermediate_path)
+                self._run_two_pass_from_frames(
+                    plan,
+                    frames_dir=frame_input_dir,
+                    frame_pattern=frame_pattern,
+                    fps=assemble_fps,
+                    vf_filters=assemble_filters,
+                )
             else:
                 final_codec = self.job.video_codec or FORMAT_DEFAULT_CODEC.get(
                     (self.job.output_format or "mp4").lower(),
@@ -276,6 +303,53 @@ class FFmpegWorker(QThread):
                 except FileNotFoundError:
                     pass
 
+    def _run_two_pass_from_frames(
+        self,
+        plan: CompressionPlan,
+        *,
+        frames_dir: str,
+        frame_pattern: str,
+        fps: float,
+        vf_filters: list[str],
+    ):
+        import tempfile
+
+        passlogfile = os.path.join(tempfile.gettempdir(), f"vidkomp_{id(self)}_frames")
+        try:
+            cmd1 = self._build_frame_pass_cmd(
+                plan,
+                pass_num=1,
+                passlogfile=passlogfile,
+                frames_dir=frames_dir,
+                frame_pattern=frame_pattern,
+                fps=fps,
+                vf_filters=vf_filters,
+                output_path=self.job.output_path,
+            )
+            self._run_process(cmd1, progress_offset=80.0, progress_scale=0.08)
+            if self.job.status in (JobStatus.FAILED, JobStatus.CANCELLED):
+                return
+
+            cmd2 = self._build_frame_pass_cmd(
+                plan,
+                pass_num=2,
+                passlogfile=passlogfile,
+                frames_dir=frames_dir,
+                frame_pattern=frame_pattern,
+                fps=fps,
+                vf_filters=vf_filters,
+                output_path=self.job.output_path,
+            )
+            self._run_process(cmd2, progress_offset=88.0, progress_scale=0.12)
+            if self.job.status != JobStatus.FAILED:
+                self._mark_complete()
+        finally:
+            for ext in ("", ".log", ".log.mbtree", "-0.log", "-0.log.mbtree"):
+                try:
+                    os.remove(passlogfile + ext)
+                except FileNotFoundError:
+                    pass
+
     def _build_two_pass_cmd(
         self,
         plan: CompressionPlan,
@@ -307,6 +381,57 @@ class FFmpegWorker(QThread):
         cmd += ["-pass", "2", "-passlogfile", passlogfile]
         cmd += self._audio_args()
         cmd += ["-progress", "pipe:1", "-nostats", output_path]
+        return cmd
+
+    def _build_frame_pass_cmd(
+        self,
+        plan: CompressionPlan,
+        pass_num: int,
+        passlogfile: str,
+        *,
+        frames_dir: str,
+        frame_pattern: str,
+        fps: float,
+        vf_filters: list[str],
+        output_path: str,
+    ) -> list[str]:
+        input_pattern = os.path.join(frames_dir, frame_pattern)
+        codec = plan.codec
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-framerate",
+            f"{fps}",
+            "-i",
+            input_pattern,
+            "-i",
+            self.job.input_path,
+            "-map",
+            "0:v:0",
+        ]
+
+        if pass_num == 2 and not self.job.strip_audio:
+            cmd += ["-map", "1:a?"]
+
+        if vf_filters:
+            cmd += ["-vf", ",".join(vf_filters)]
+
+        cmd += ["-c:v", codec, "-b:v", f"{plan.target_bitrate_kbps}k"]
+        cmd += self._thread_args()
+        if codec in CRF_SPECIAL:
+            cmd += ["-crf", "10"]
+        if plan.preset and codec not in NO_PRESET_CODECS:
+            cmd += ["-preset", plan.preset]
+        cmd += ["-pix_fmt", "yuv420p"]
+
+        if pass_num == 1:
+            cmd += ["-pass", "1", "-passlogfile", passlogfile, "-an", "-f", "null"]
+            cmd.append("NUL" if os.name == "nt" else "/dev/null")
+            return cmd
+
+        cmd += ["-pass", "2", "-passlogfile", passlogfile]
+        cmd += self._audio_args()
+        cmd += ["-shortest", "-progress", "pipe:1", "-nostats", output_path]
         return cmd
 
     def _build_single_pass_cmd(
@@ -493,24 +618,38 @@ class FFmpegWorker(QThread):
             )
         return vf
 
+    def _external_extract_filters(self) -> list[str]:
+        job = self.job
+        meta = job.source_metadata
+        if (
+            job.upscale_mode != UpscaleMode.REAL_ESRGAN
+            or not meta
+            or not job.upscale_width
+            or not job.upscale_height
+            or (job.upscale_width > meta.width or job.upscale_height > meta.height)
+        ):
+            return []
+
+        scale = max(1, job.upscale_scale)
+        input_w = max(2, self._even_dimension(job.upscale_width // scale))
+        input_h = max(2, self._even_dimension(job.upscale_height // scale))
+        return [f"scale={input_w}:{input_h}:flags=lanczos"]
+
     def _external_pipeline_filters(self) -> list[str]:
         vf: list[str] = []
         job = self.job
-        if job.upscale_mode != UpscaleMode.REAL_ESRGAN and job.target_width and job.target_height:
-            vf.append(f"scale={job.target_width}:{job.target_height}:flags=lanczos")
-        elif (
-            job.upscale_mode == UpscaleMode.REAL_ESRGAN
-            and job.upscale_width
-            and job.upscale_height
-            and (job.upscale_width != job.target_width or job.upscale_height != job.target_height)
-            and job.target_width
-            and job.target_height
-        ):
+        if job.upscale_mode == UpscaleMode.REAL_ESRGAN and job.upscale_width and job.upscale_height:
+            vf.append(f"scale={job.upscale_width}:{job.upscale_height}:flags=lanczos")
+        elif job.target_width and job.target_height:
             vf.append(f"scale={job.target_width}:{job.target_height}:flags=lanczos")
 
         if job.target_fps and job.interpolation_mode != InterpolationMode.RIFE_2X:
             vf.append(f"fps={job.target_fps}")
         return vf
+
+    @staticmethod
+    def _even_dimension(value: int) -> int:
+        return value if value % 2 == 0 else value - 1
 
     def _assembly_fps(self) -> float:
         job = self.job
@@ -557,7 +696,14 @@ class FFmpegWorker(QThread):
             and self.job.video_codec == "copy"
         )
 
-    def _extract_frames(self, input_path: str, output_dir: str, pattern: str):
+    def _extract_frames(
+        self,
+        input_path: str,
+        output_dir: str,
+        pattern: str,
+        frame_ext: str = "png",
+        vf_filters: list[str] | None = None,
+    ):
         output_pattern = os.path.join(output_dir, pattern)
         cmd = [
             "ffmpeg",
@@ -567,16 +713,26 @@ class FFmpegWorker(QThread):
             "-vsync",
             "0",
         ]
+        if vf_filters:
+            cmd += ["-vf", ",".join(vf_filters)]
         cmd += self._thread_args()
         cmd += [
             "-progress",
             "pipe:1",
             "-nostats",
-            output_pattern,
         ]
+        if frame_ext.lower() in {"jpg", "jpeg"}:
+            cmd += ["-q:v", "2"]
+        cmd.append(output_pattern)
         self._run_process(cmd, progress_offset=0.0, progress_scale=0.18)
 
-    def _run_realesrgan(self, input_dir: str, output_dir: str):
+    def _run_realesrgan(
+        self,
+        input_dir: str,
+        output_dir: str,
+        source_frame_count: int,
+        frame_ext: str,
+    ):
         if not self.job.upscale_width or not self.job.upscale_height:
             raise ValueError("Real-ESRGAN requires a target upscale size.")
         binary_path = resolve_realesrgan_binary()
@@ -597,7 +753,7 @@ class FFmpegWorker(QThread):
             "-n",
             self.job.upscale_model,
             "-f",
-            "png",
+            frame_ext,
         ]
         cmd += self._gpu_args()
         self._run_process(
@@ -606,9 +762,11 @@ class FFmpegWorker(QThread):
             progress_scale=0.34,
             use_duration=False,
             cwd=str(binary_path.parent),
+            output_dir=output_dir,
+            expected_outputs=source_frame_count,
         )
 
-    def _run_rife(self, input_dir: str, output_dir: str, output_pattern: str):
+    def _run_rife(self, input_dir: str, output_dir: str, output_pattern: str, source_frame_count: int):
         binary_path = resolve_rife_binary()
         if binary_path is None:
             raise ValueError(
@@ -633,6 +791,8 @@ class FFmpegWorker(QThread):
             progress_scale=0.28,
             use_duration=False,
             cwd=str(binary_path.parent),
+            output_dir=output_dir,
+            expected_outputs=source_frame_count * 2,
         )
 
     def _assemble_video_from_frames(
@@ -703,6 +863,8 @@ class FFmpegWorker(QThread):
         *,
         cwd: str | None = None,
         use_duration: bool = True,
+        output_dir: str | None = None,
+        expected_outputs: int | None = None,
     ):
         duration = self.job.source_metadata.duration if (self.job.source_metadata and use_duration) else None
 
@@ -724,26 +886,100 @@ class FFmpegWorker(QThread):
         t = threading.Thread(target=_drain, daemon=True)
         t.start()
 
+        last_pct = -1.0
+        progress_lock = threading.Lock()
+        stop_polling = threading.Event()
+
+        def _safe_emit(pct: float, *, force: bool = False):
+            nonlocal last_pct
+            with progress_lock:
+                last_pct = self._emit_progress(pct, last_pct, force=force)
+
+        def _poll_output_progress():
+            if not output_dir or not expected_outputs:
+                return
+            while not stop_polling.wait(0.5):
+                if self._process.poll() is not None:
+                    break
+                produced = self._count_frames(output_dir)
+                if produced <= 0:
+                    continue
+                raw_pct = min(100.0, (produced / expected_outputs) * 100)
+                pct = progress_offset + raw_pct * progress_scale
+                _safe_emit(pct)
+
+        poll_thread = threading.Thread(target=_poll_output_progress, daemon=True)
+        poll_thread.start()
+
         for line in self._process.stdout:
             if line.startswith("out_time_ms=") and duration:
                 try:
                     elapsed_s = int(line.strip().split("=")[1]) / 1_000_000
                     raw_pct = min(100.0, (elapsed_s / duration) * 100)
                     pct = progress_offset + raw_pct * progress_scale
-                    self.job.progress = pct
-                    self.progress.emit(pct)
+                    _safe_emit(pct)
                 except ValueError:
                     pass
+                continue
+
+            match = PERCENT_RE.match(line.strip())
+            if match:
+                raw_pct = min(100.0, float(match.group(1)))
+                pct = progress_offset + raw_pct * progress_scale
+                _safe_emit(pct)
+                continue
+
+            if output_dir and expected_outputs:
+                produced = self._count_frames(output_dir)
+                if produced > 0:
+                    raw_pct = min(100.0, (produced / expected_outputs) * 100)
+                    pct = progress_offset + raw_pct * progress_scale
+                    _safe_emit(pct)
 
         self._process.wait()
+        stop_polling.set()
+        poll_thread.join(timeout=1.0)
         t.join()
 
-        if self._process.returncode != 0:
+        if self._cancel_requested or self.job.status == JobStatus.CANCELLED:
+            self._stop_process_tree()
+            self.job.status = JobStatus.CANCELLED
+        elif self._process.returncode != 0:
+            self._stop_process_tree()
             self._fail("".join(stderr_lines) or f"Command failed: {' '.join(cmd)}")
         elif progress_scale > 0 and duration is None:
             pct = min(100.0, progress_offset + progress_scale)
+            _safe_emit(pct, force=True)
+
+        self._process = None
+
+    def _stop_process_tree(self):
+        process = self._process
+        if process is None or process.poll() is not None:
+            return
+
+        if os.name == "nt":
+            subprocess.run(
+                ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+            )
+            return
+
+        process.terminate()
+        try:
+            process.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            process.kill()
+
+    def _emit_progress(self, pct: float, last_pct: float, *, force: bool = False) -> float:
+        pct = max(0.0, min(100.0, pct))
+        if force or pct >= last_pct + 0.1 or pct >= 100.0:
             self.job.progress = pct
             self.progress.emit(pct)
+            return pct
+        return last_pct
 
     def _mark_complete(self):
         self.job.status = JobStatus.DONE
